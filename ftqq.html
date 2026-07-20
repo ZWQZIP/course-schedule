@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方糖消息发送器（带参考Key）</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 { color: #2c3e50; text-align: center; }
+        label { font-weight: bold; display: block; margin-top: 15px; color: #34495e; }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .key-ref-card {
+            margin-top: 8px;
+            background: #fff;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .key-ref-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 14px;
+        }
+        .key-ref-item:not(:last-child) {
+            border-bottom: 1px dashed #ecf0f1;
+        }
+        .key-ref-label {
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 40px;
+            color: #2c3e50;
+        }
+        .key-ref-value {
+            flex: 1;
+            font-family: monospace;
+            color: #7f8c8d;
+            word-break: break-all;
+        }
+        .copy-btn {
+            margin-left: 10px;
+            padding: 2px 10px;
+            font-size: 12px;
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .copy-btn:hover { background: #dfe6e9; }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover { background: #2980b9; }
+        #clearBtn { background: #e74c3c; }
+        #clearBtn:hover { background: #c0392b; }
+        #result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .history-container {
+            margin-top: 25px;
+            border-top: 2px solid #bdc3c7;
+            padding-top: 15px;
+        }
+        .history-container h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .history-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 5px solid #3498db;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .history-item.success-item { border-left-color: #27ae60; }
+        .history-item.error-item { border-left-color: #e74c3c; }
+        .history-time { color: #7f8c8d; font-size: 12px; }
+        .content-preview {
+            color: #2c3e50;
+            margin: 4px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        .content-full {
+            display: none;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+        .content-full.show { display: block; }
+        .toggle-hint { color: #3498db; font-size: 12px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <h2>📨 发消息给靓靓~</h2>
+
+    <label for="sendkey">朋友的 SendKey</label>
+    <input type="text" id="sendkey" placeholder="SCT123456...">
+
+    <div class="key-ref-card" id="keyRefCard"></div>
+
+    <label for="title">标题（必填）</label>
+    <input type="text" id="title" placeholder="比如：记得带伞">
+
+    <label for="desp">内容（支持Markdown）</label>
+    <textarea id="desp" rows="3" placeholder="比如：下午有雨，出门别忘了🌧️"></textarea>
+
+    <div class="button-group">
+        <button onclick="sendMsg()">🚀 发送</button>
+        <button id="clearBtn" onclick="clearHistory()">🗑️ 清空历史</button>
+    </div>
+    <div id="result"></div>
+
+    <div class="history-container">
+        <h3>📋 发送历史</h3>
+        <ul id="historyList" class="history-list"></ul>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🔧 在这里填写你们2个人的真实 SendKey
+        // ==========================================
+        const KEYS = {
+            "我":   "SCT377805TcEnODuQWoPtOYN0axoTSGVUn",
+            "靓靓": "SCT378620TdCw02g2FUGuJ7lr3CEvQi66i"
+        };
+
+        // 生成参考Key区域
+        function renderKeyRefs() {
+            const container = document.getElementById('keyRefCard');
+            container.innerHTML = Object.entries(KEYS).map(([label, key]) => `
+                <div class="key-ref-item">
+                    <span class="key-ref-label">${label}：</span>
+                    <span class="key-ref-value">${key}</span>
+                    <button class="copy-btn" data-key="${key.replace(/"/g, '&quot;')}" onclick="copyKey(this)">📋 复制</button>
+                </div>
+            `).join('');
+        }
+
+        function copyKey(btn) {
+            const key = btn.getAttribute('data-key');
+            navigator.clipboard.writeText(key).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已复制';
+                setTimeout(() => { btn.textContent = originalText; }, 1500);
+            }).catch(() => {
+                alert('复制失败，请手动复制');
+            });
+        }
+
+        // ---------- 历史记录相关 ----------
+        const STORAGE_KEY = 'ftqq_send_history';
+        function getHistory() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            return raw ? JSON.parse(raw) : [];
+        }
+        function saveHistory(history) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        }
+        function maskKey(key) {
+            if (!key || key.length < 10) return key || '';
+            return key.slice(0, 6) + '****' + key.slice(-4);
+        }
+        function addHistory(key, title, desp, success, message) {
+            const history = getHistory();
+            history.unshift({
+                maskedKey: maskKey(key),
+                title: title || '',
+                desp: desp || '',   // 确保保存的内容不是undefined
+                time: new Date().toLocaleString(),
+                success,
+                message: message || ''
+            });
+            if (history.length > 50) history.pop();
+            saveHistory(history);
+            renderHistory();
+        }
+
+        // 兼容旧历史记录（没有desp字段的情况）
+        function normalizeHistory(history) {
+            return history.map(item => ({
+                ...item,
+                desp: item.desp || '(无内容)',
+                title: item.title || '无标题',
+                maskedKey: item.maskedKey || '未知Key',
+                time: item.time || '',
+                success: item.success || false,
+                message: item.message || ''
+            }));
+        }
+
+        function renderHistory() {
+            const listEl = document.getElementById('historyList');
+            let history = getHistory();
+            // 修复旧数据
+            history = normalizeHistory(history);
+            if (history.length === 0) {
+                listEl.innerHTML = '<li style="color:#7f8c8d; text-align:center; padding:10px;">暂无历史记录</li>';
+                return;
+            }
+            listEl.innerHTML = history.map((item, index) => {
+                const shortDesp = item.desp.length > 30 ? item.desp.slice(0, 30) + '...' : item.desp;
+                const needToggle = item.desp.length > 30;
+                return `
+                    <li class="history-item ${item.success ? 'success-item' : 'error-item'}">
+                        <div><strong>收件人：</strong>${item.maskedKey}</div>
+                        <div><strong>标题：</strong>${item.title}</div>
+                        <div class="content-preview" onclick="toggleContent(${index}, this)" title="点击查看完整内容">
+                            <strong>内容：</strong>${shortDesp}
+                            ${needToggle ? '<span class="toggle-hint">[展开]</span>' : ''}
+                        </div>
+                        ${needToggle ? `<div class="content-full" id="content-${index}">${item.desp.replace(/\n/g, '<br>')}</div>` : ''}
+                        <div><strong>结果：</strong>${item.success ? '✅ 成功' : '❌ 失败'}</div>
+                        <div class="history-time">${item.time}</div>
+                        ${!item.success ? `<div style="color:#c0392b;">原因：${item.message}</div>` : ''}
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function toggleContent(index, element) {
+            const fullDiv = document.getElementById(`content-${index}`);
+            if (!fullDiv) return;
+            const hint = element.querySelector('.toggle-hint');
+            if (fullDiv.classList.contains('show')) {
+                fullDiv.classList.remove('show');
+                if (hint) hint.textContent = '[展开]';
+            } else {
+                fullDiv.classList.add('show');
+                if (hint) hint.textContent = '[收起]';
+            }
+        }
+
+        function clearHistory() {
+            if (confirm('确定要清空所有发送历史吗？')) {
+                localStorage.removeItem(STORAGE_KEY);
+                renderHistory();
+            }
+        }
+
+        // ---------- 发送逻辑 ----------
+        async function sendMsg() {
+            const sendkey = document.getElementById('sendkey').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const desp = document.getElementById('desp').value.trim();
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+
+            if (!sendkey) {
+                showResult('请输入 SendKey（可从上方参考区复制）', 'error');
+                return;
+            }
+            if (!title) {
+                showResult('标题不能为空', 'error');
+                return;
+            }
+
+            const url = `https://sctapi.ftqq.com/${sendkey}.send`;
+            const formData = new URLSearchParams();
+            formData.append('title', title);
+            formData.append('desp', desp || ' ');
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
+                const data = await response.json();
+                if (data.code === 0) {
+                    showResult('✅ 发送成功！', 'success');
+                    addHistory(sendkey, title, desp, true, '');
+                } else {
+                    const errMsg = `${data.message} (code=${data.code})`;
+                    showResult(`❌ 失败：${errMsg}`, 'error');
+                    addHistory(sendkey, title, desp, false, errMsg);
+                }
+            } catch (err) {
+                const errMsg = `网络错误：${err.message || err}`;
+                showResult(`❌ ${errMsg}`, 'error');
+                addHistory(sendkey, title, desp, false, errMsg);
+            }
+        }
+
+        function showResult(msg, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = msg;
+            resultDiv.className = type;
+            resultDiv.style.display = 'block';
+            setTimeout(() => { resultDiv.style.display = 'none'; }, 5000);
+        }
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            renderKeyRefs();
+            // 第一次渲染时自动修复旧数据
+            const oldHistory = getHistory();
+            if (oldHistory.length > 0) {
+                saveHistory(normalizeHistory(oldHistory));
+            }
+            renderHistory();
+        });
+    </script>
+</body>
+</html>

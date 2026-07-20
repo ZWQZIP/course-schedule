@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>课程管理表</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "微软雅黑", "PingFang SC", sans-serif;
+            background-color: #f0f4f8;
+            padding: 20px 10px;
+        }
+
+        .title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 12px;
+            font-size: 22px;
+            font-weight: 600;
+        }
+        .loading-tip {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .reminder-bar {
+            max-width: 1000px;
+            margin: 0 auto 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-size: 14px;
+            color: #555;
+            flex-wrap: wrap;
+        }
+        .reminder-btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #5b8def;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .reminder-btn.off { background: #999; }
+        .reminder-status { font-size: 12px; color: #239b56; }
+        .refresh-btn {
+            padding: 6px 14px;
+            background: #239b56;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .refresh-btn:disabled {
+            background: #95d3a9;
+            cursor: not-allowed;
+        }
+
+        .tab-bar {
+            max-width: 1000px;
+            margin: 0 auto 16px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .tab-btn.active {
+            background: #5b8def;
+            color: white;
+        }
+
+        .panel {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: none;
+        }
+        .panel.active { display: block; }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px;
+            table-layout: fixed;
+            min-width: 650px;
+        }
+        th {
+            background-color: #5b8def;
+            color: white;
+            padding: 10px 6px;
+            border-radius: 8px;
+            min-width: 80px;
+            font-weight: 500;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .date-text {
+            font-size: 12px;
+            opacity: 0.85;
+            font-weight: normal;
+            display: block;
+            margin-top: 2px;
+        }
+        .time-col {
+            background-color: #eef2f7;
+            color: #555;
+            font-size: 12px;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px 4px;
+            width: 70px;
+            min-width: 50px;
+            font-weight: 500;
+        }
+        .rest-row td {
+            background-color: #fafafa;
+            color: #ddd;
+            text-align: center;
+            font-size: 11px;
+            height: 28px;
+        }
+
+        .class-item {
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            user-select: none;
+            text-align: center;
+            margin-bottom: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            padding: 4px 2px;
+        }
+        .class-item:last-child { margin-bottom: 0; }
+        .class-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .class-time {
+            font-size: 10px;
+            line-height: 1;
+            opacity: 0.75;
+        }
+        .class-time.top { margin-bottom: 2px; }
+        .class-time.bottom { margin-top: 2px; }
+
+        .class-name {
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .duration-tag {
+            font-size: 10px;
+            font-weight: bold;
+            opacity: 0.8;
+            margin-left: 2px;
+        }
+
+        .class-day { background-color: #e3f0ff; color: #2b5cad; }
+        .class-night { background-color: #f0e8ff; color: #6a3db8; }
+
+        .class-item.finished {
+            background-color: #e6f7ed;
+            color: #239b56;
+        }
+        .class-item.finished::after {
+            content: "✓";
+            position: absolute;
+            top: 2px;
+            right: 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        td {
+            background-color: #fafbfc;
+            border-radius: 6px;
+            vertical-align: top;
+            padding: 4px;
+        }
+        td.has-course {
+            background-color: #fff8e1;
+        }
+        td:empty { opacity: 0.3; }
+
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+        }
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 16px;
+            border-radius: 8px;
+            background: #f7f9fc;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: 600;
+            color: #5b8def;
+            margin-bottom: 4px;
+        }
+        .stat-label { font-size: 13px; color: #666; }
+        .stat-item.green .stat-number { color: #239b56; }
+
+        .class-stats h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .class-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .class-stat-row:last-child { border-bottom: none; }
+
+        .reset-btn {
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .manage-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background: #5b8def;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-danger {
+            padding: 4px 10px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .course-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px 20px 20px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        .modal-box h3 { margin-bottom: 16px; font-size: 18px; color: #333; }
+        .modal-box .link-row {
+            display: flex;
+            align-items: center;
+            background: #f7f9fc;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            word-break: break-all;
+            font-size: 13px;
+            color: #555;
+            justify-content: space-between;
+        }
+        .modal-box .link-row .link-text {
+            flex: 1;
+            margin-right: 8px;
+            text-align: left;
+        }
+        .modal-box .copy-btn {
+            background: #5b8def;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .modal-box .open-calendar-btn {
+            display: block;
+            width: 100%;
+            margin-top: 6px;
+            padding: 10px;
+            background: #ff9500;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .modal-box .close-btn {
+            margin-top: 12px;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 10px 5px; }
+            .title { font-size: 18px; }
+            .reminder-bar { padding: 8px 10px; font-size: 13px; gap: 8px; }
+            .reminder-btn, .refresh-btn { padding: 5px 10px; font-size: 12px; }
+            .tab-btn { padding: 6px 14px; font-size: 12px; }
+            th { font-size: 12px; padding: 8px 4px; min-width: 65px; }
+            .time-col { width: 50px; font-size: 11px; min-width: 45px; }
+            .class-name { font-size: 11px; }
+            .class-time { font-size: 9px; }
+            .duration-tag { font-size: 9px; }
+            .table-container { padding: 10px; }
+            .stats-card, .manage-card { padding: 15px; }
+            .stat-number { font-size: 22px; }
+            .stat-label { font-size: 12px; }
+            .class-stat-row, .course-list-item { font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title">课程管理表</h1>
+    <div class="loading-tip" id="loadingTip">数据加载中...</div>
+
+    <div class="reminder-bar">
+        <span>上课提醒：</span>
+        <button id="reminderToggle" class="reminder-btn off" onclick="toggleReminder()">开启提醒</button>
+        <span id="reminderStatus" class="reminder-status" style="display:none;">已开启 · 提前30分钟提醒</span>
+        <button class="refresh-btn" id="refreshBtn" onclick="loadAllData()">刷新数据</button>
+        <button class="refresh-btn" style="background:#ff9500;" onclick="openSubscribeModal()">📅 订阅日历</button>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('schedule')">课程表</button>
+        <button class="tab-btn" onclick="switchTab('stats')">统计汇总</button>
+        <button class="tab-btn" onclick="switchTab('manage')">课程管理</button>
+    </div>
+
+    <div id="panel-schedule" class="panel active">
+        <div class="table-container">
+            <table id="schedule-table">
+                <thead>
+                    <tr>
+                        <th class="time-col">时间</th>
+                        <th>周一<span class="date-text" id="date-0"></span></th>
+                        <th>周二<span class="date-text" id="date-1"></span></th>
+                        <th>周三<span class="date-text" id="date-2"></span></th>
+                        <th>周四<span class="date-text" id="date-3"></span></th>
+                        <th>周五<span class="date-text" id="date-4"></span></th>
+                        <th>周六<span class="date-text" id="date-5"></span></th>
+                        <th>周日<span class="date-text" id="date-6"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="panel-stats" class="panel">
+        <div class="stats-card">
+            <div class="stats-overview">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-classes">0</div>
+                    <div class="stat-label">每周总课次</div>
+                </div>
+                <div class="stat-item green">
+                    <div class="stat-number" id="finished-count">0</div>
+                    <div class="stat-label">累计完成</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="finish-rate">0%</div>
+                    <div class="stat-label">累计完成率</div>
+                </div>
+            </div>
+            <div class="class-stats">
+                <h3>各课程完成明细</h3>
+                <div id="class-stats-list"></div>
+            </div>
+            <button class="reset-btn" onclick="resetAllRecords()">重置所有打卡记录</button>
+        </div>
+    </div>
+
+    <div id="panel-manage" class="panel">
+        <div class="manage-card">
+            <h3 style="margin-bottom: 16px; font-size: 16px;">添加新课程</h3>
+            <div class="form-group">
+                <label>课程名称</label>
+                <input type="text" id="new-class-name" placeholder="例如：19班·张教练">
+            </div>
+            <div class="form-group">
+                <label>星期</label>
+                <select id="new-class-day">
+                    <option value="0">周一</option>
+                    <option value="1">周二</option>
+                    <option value="2">周三</option>
+                    <option value="3">周四</option>
+                    <option value="4">周五</option>
+                    <option value="5">周六</option>
+                    <option value="6">周日</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>开始时间</label>
+                <select id="new-class-start">
+                    <option value="08:00">08:00</option>
+                    <option value="08:30">08:30</option>
+                    <option value="09:00">09:00</option>
+                    <option value="09:30">09:30</option>
+                    <option value="10:00">10:00</option>
+                    <option value="10:30">10:30</option>
+                    <option value="11:00">11:00</option>
+                    <option value="11:30">11:30</option>
+                    <option value="14:00">14:00</option>
+                    <option value="14:30">14:30</option>
+                    <option value="15:00">15:00</option>
+                    <option value="15:30">15:30</option>
+                    <option value="16:00">16:00</option>
+                    <option value="16:30">16:30</option>
+                    <option value="17:00">17:00</option>
+                    <option value="17:30">17:30</option>
+                    <option value="18:00">18:00</option>
+                    <option value="19:00">19:00</option>
+                    <option value="19:30">19:30</option>
+                    <option value="20:00">20:00</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>结束时间</label>
+                <select id="new-class-end">
+                    <option value="08:30">08:30</option>
+                    <option value="09:00">09:00</option>
+                    <option value="09:30">09:30</option>
+                    <option value="10:00">10:00</option>
+                    <option value="10:30">10:30</option>
+                    <option value="11:00">11:00</option>
+                    <option value="11:30">11:30</option>
+                    <option value="12:00">12:00</option>
+                    <option value="14:30">14:30</option>
+                    <option value="15:00">15:00</option>
+                    <option value="15:30">15:30</option>
+                    <option value="16:00">16:00</option>
+                    <option value="16:30">16:30</option>
+                    <option value="17:00">17:00</option>
+                    <option value="17:30">17:30</option>
+                    <option value="18:00">18:00</option>
+                    <option value="18:30">18:30</option>
+                    <option value="19:30">19:30</option>
+                    <option value="20:00">20:00</option>
+                    <option value="20:30">20:30</option>
+                    <option value="21:00">21:00</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>课程类型</label>
+                <select id="new-class-type">
+                    <option value="day">白天课程（蓝色）</option>
+                    <option value="night">晚间课程（紫色）</option>
+                </select>
+            </div>
+            <button class="btn-primary" onclick="addClass()">添加课程</button>
+        </div>
+
+        <div class="manage-card">
+            <h3 style="margin-bottom: 16px; font-size: 16px;">现有课程列表</h3>
+            <div id="course-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="subscribeModal">
+        <div class="modal-box">
+            <h3>📅 订阅课程日历</h3>
+            <p style="font-size:13px; color:#666; margin-bottom:12px;">
+                复制下方链接，在系统日历（或 Google 日历）中通过“添加日历” → “来自 URL” 粘贴即可订阅。
+            </p>
+            <div class="link-row">
+                <span class="link-text" id="webcalLink">webcal://1304017523-69mt8mz9of.ap-guangzhou.tencentscf.com</span>
+                <button class="copy-btn" onclick="copyLink('webcalLink')">复制</button>
+            </div>
+            <div class="link-row">
+                <span class="link-text" id="httpsLink">https://1304017523-69mt8mz9of.ap-guangzhou.tencentscf.com</span>
+                <button class="copy-btn" onclick="copyLink('httpsLink')">复制</button>
+            </div>
+            <button class="open-calendar-btn" onclick="window.open('webcal://1304017523-69mt8mz9of.ap-guangzhou.tencentscf.com', '_blank')">
+                📅 直接打开日历
+            </button>
+            <button class="close-btn" onclick="closeSubscribeModal()">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        const VIKA_TOKEN = "uskWnXLIQPoEIiPVzGSp0Kn";
+        const VIKA_COURSES_TABLE = "dstXGsM9F3MsB5r04X";
+        const VIKA_RECORDS_TABLE = "dstf4lAuj6FXc53cPW";
+        const SERVER_CHAN_KEY = "SCT377805TcEnODuQWoPtOYN0axoTSGVUn";
+        const REMIND_BEFORE_MINUTES = 30;
+
+        const VIKA_BASE = "https://api.vika.cn/fusion/v1/datasheets";
+        const requestHeaders = {
+            "Authorization": `Bearer ${VIKA_TOKEN}`,
+            "Content-Type": "application/json"
+        };
+
+        const timeSlots = [
+            "08:00","08:30","09:00","09:30",
+            "10:00","10:30","11:00","11:30",
+            "12:00","12:30","13:00","13:30",
+            "14:00","14:30","15:00","15:30",
+            "16:00","16:30","17:00","17:30",
+            "18:00","18:30",
+            "19:00","19:30","20:00","20:30"
+        ];
+        const restSlots = ["12:00","12:30","13:00","13:30","18:00","18:30"];
+
+        let courses = [];
+        let recordMap = {};
+        let reminderEnabled = false;
+        let reminderTimer = null;
+        let remindedToday = {};
+        let isLoading = false;
+
+        function timeToMinutes(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        // 格式化时间字符串，补前导零
+        function formatTime(str) {
+            return String(str).replace(/^(\d):/, '0$1:').trim();
+        }
+
+        async function loadAllData() {
+            if (isLoading) return;
+            isLoading = true;
+            document.getElementById('refreshBtn').disabled = true;
+            document.getElementById('loadingTip').textContent = '数据加载中...';
+
+            try {
+                const courseRes = await fetch(`${VIKA_BASE}/${VIKA_COURSES_TABLE}/records`, {
+                    headers: requestHeaders
+                });
+                if (!courseRes.ok) throw new Error('接口请求失败，状态码：' + courseRes.status);
+                const courseData = await courseRes.json();
+                courses = courseData.data.records.map(item => ({
+                    id: item.recordId,
+                    name: item.fields.name || '',
+                    day: item.fields.day,
+                    start: formatTime(item.fields.start || ''),
+                    end: formatTime(item.fields.end || ''),
+                    type: item.fields.type || 'day'
+                })).filter(c => c.name);
+
+                if (courses.length === 0) {
+                    document.getElementById('loadingTip').textContent = '课程表为空，请先在维格表录入课程';
+                    return;
+                }
+
+                const recordRes = await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records`, {
+                    headers: requestHeaders
+                });
+                const recordData = await recordRes.json();
+                recordMap = {};
+                recordData.data.records.forEach(item => {
+                    if (item.fields.courseId) {
+                        recordMap[item.fields.courseId] = item.fields.count || 0;
+                    }
+                });
+
+                renderSchedule();
+                document.getElementById('loadingTip').textContent = '数据已同步';
+                setTimeout(() => document.getElementById('loadingTip').textContent = '', 2000);
+            } catch (e) {
+                document.getElementById('loadingTip').textContent = '加载失败，请检查网络后稍后重试';
+                console.error(e);
+            } finally {
+                isLoading = false;
+                document.getElementById('refreshBtn').disabled = false;
+            }
+        }
+
+        async function updateRecord(courseId, delta) {
+            try {
+                const recordRes = await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records?filterByFormula={courseId}="${courseId}"`, {
+                    headers: requestHeaders
+                });
+                const data = await recordRes.json();
+                const records = data.data.records;
+
+                let newCount;
+                if (records.length > 0) {
+                    const record = records[0];
+                    newCount = Math.max(0, (record.fields.count || 0) + delta);
+                    await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records`, {
+                        method: "PATCH",
+                        headers: requestHeaders,
+                        body: JSON.stringify({
+                            records: [{ recordId: record.recordId, fields: { count: newCount } }]
+                        })
+                    });
+                } else {
+                    newCount = Math.max(0, delta);
+                    await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records`, {
+                        method: "POST",
+                        headers: requestHeaders,
+                        body: JSON.stringify({
+                            records: [{ fields: { courseId, count: newCount } }]
+                        })
+                    });
+                }
+                recordMap[courseId] = newCount;
+                renderSchedule();
+            } catch (e) {
+                console.error('更新打卡失败', e);
+                alert('操作失败，请稍后重试');
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`panel-${tabName}`).classList.add('active');
+            if (tabName === 'stats') renderStats();
+            if (tabName === 'manage') renderCourseList();
+        }
+
+        function updateWeekDates() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + diffToMonday);
+            for (let i = 0; i < 7; i++) {
+                const currentDay = new Date(monday);
+                currentDay.setDate(monday.getDate() + i);
+                document.getElementById(`date-${i}`).textContent = 
+                    `${currentDay.getMonth() + 1}/${currentDay.getDate()}`;
+            }
+        }
+
+        function renderSchedule() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            const occupied = Array.from({length: 7}, () => new Set());
+
+            timeSlots.forEach((time, rowIndex) => {
+                const tr = document.createElement('tr');
+                const timeTd = document.createElement('td');
+                timeTd.className = 'time-col';
+                timeTd.textContent = time;
+                tr.appendChild(timeTd);
+
+                if (restSlots.includes(time)) {
+                    tr.classList.add('rest-row');
+                    for (let day = 0; day < 7; day++) {
+                        tr.appendChild(document.createElement('td'));
+                    }
+                    tbody.appendChild(tr);
+                    return;
+                }
+
+                for (let day = 0; day < 7; day++) {
+                    if (occupied[day].has(rowIndex)) continue;
+
+                    const td = document.createElement('td');
+                    const dayCourses = courses.filter(c => c.day === day && c.start === time);
+
+                    if (dayCourses.length > 0) {
+                        td.classList.add('has-course');
+
+                        let maxRowSpan = 1;
+                        dayCourses.forEach(c => {
+                            const duration = timeToMinutes(c.end) - timeToMinutes(c.start);
+                            const span = Math.ceil(duration / 30);
+                            if (span > maxRowSpan) maxRowSpan = span;
+                        });
+                        td.rowSpan = maxRowSpan;
+
+                        for (let i = 1; i < maxRowSpan; i++) {
+                            occupied[day].add(rowIndex + i);
+                        }
+
+                        dayCourses.forEach(course => {
+                            const div = document.createElement('div');
+                            div.className = `class-item class-${course.type}`;
+                            if (recordMap[course.id] > 0) div.classList.add('finished');
+
+                            const duration = timeToMinutes(course.end) - timeToMinutes(course.start);
+
+                            const topTime = document.createElement('span');
+                            topTime.className = 'class-time top';
+                            topTime.textContent = course.start;
+
+                            const nameDiv = document.createElement('div');
+                            nameDiv.className = 'class-name';
+                            nameDiv.textContent = course.name;
+
+                            const tag = document.createElement('span');
+                            tag.className = 'duration-tag';
+                            tag.textContent = ` ${duration}min`;
+                            nameDiv.appendChild(tag);
+
+                            const bottomTime = document.createElement('span');
+                            bottomTime.className = 'class-time bottom';
+                            bottomTime.textContent = course.end;
+
+                            div.appendChild(topTime);
+                            div.appendChild(nameDiv);
+                            div.appendChild(bottomTime);
+
+                            div.onclick = () => toggleFinish(course.id);
+                            td.appendChild(div);
+                        });
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleFinish(courseId) {
+            const current = recordMap[courseId] || 0;
+            const delta = current > 0 ? -1 : 1;
+            updateRecord(courseId, delta);
+        }
+
+        function renderStats() {
+            const totalWeekly = courses.length;
+            const totalFinished = Object.values(recordMap).reduce((a, b) => a + b, 0);
+            const rate = totalWeekly > 0 ? Math.round((totalFinished / totalWeekly) * 100) : 0;
+
+            document.getElementById('total-classes').textContent = totalWeekly;
+            document.getElementById('finished-count').textContent = totalFinished;
+            document.getElementById('finish-rate').textContent = rate + '%';
+
+            const list = document.getElementById('class-stats-list');
+            list.innerHTML = '';
+
+            const courseMap = {};
+            courses.forEach(course => {
+                if (!courseMap[course.name]) {
+                    courseMap[course.name] = { weeklyCount: 0, finishedCount: 0 };
+                }
+                courseMap[course.name].weeklyCount++;
+                courseMap[course.name].finishedCount += recordMap[course.id] || 0;
+            });
+
+            Object.entries(courseMap).forEach(([name, info]) => {
+                const row = document.createElement('div');
+                row.className = 'class-stat-row';
+                row.innerHTML = `
+                    <span>${name}（每周${info.weeklyCount}节）</span>
+                    <span>已完成 ${info.finishedCount} 次</span>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        async function resetAllRecords() {
+            if (!confirm('确定要清空所有打卡记录吗？此操作不可恢复')) return;
+            try {
+                const res = await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records`, {
+                    headers: requestHeaders
+                });
+                const data = await res.json();
+                const ids = data.data.records.map(r => r.recordId);
+                if (ids.length > 0) {
+                    await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records?recordIds=${ids.join(',')}`, {
+                        method: "DELETE",
+                        headers: requestHeaders
+                    });
+                }
+                recordMap = {};
+                renderSchedule();
+                renderStats();
+                alert('重置成功');
+            } catch (e) {
+                alert('重置失败，请稍后重试');
+            }
+        }
+
+        async function addClass() {
+            const name = document.getElementById('new-class-name').value.trim();
+            const day = parseInt(document.getElementById('new-class-day').value);
+            const start = document.getElementById('new-class-start').value;
+            const end = document.getElementById('new-class-end').value;
+            const type = document.getElementById('new-class-type').value;
+
+            if (!name) return alert('请输入课程名称');
+            if (timeToMinutes(start) >= timeToMinutes(end)) return alert('结束时间必须晚于开始时间');
+
+            try {
+                const res = await fetch(`${VIKA_BASE}/${VIKA_COURSES_TABLE}/records`, {
+                    method: "POST",
+                    headers: requestHeaders,
+                    body: JSON.stringify({
+                        records: [{ fields: { name, day, start, end, type } }]
+                    })
+                });
+                const data = await res.json();
+                const newCourseId = data.data.records[0].recordId;
+
+                await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records`, {
+                    method: "POST",
+                    headers: requestHeaders,
+                    body: JSON.stringify({
+                        records: [{ fields: { courseId: newCourseId, count: 0 } }]
+                    })
+                });
+
+                await loadAllData();
+                document.getElementById('new-class-name').value = '';
+                alert('课程添加成功，已同步到云端');
+            } catch (e) {
+                alert('添加失败，请检查配置');
+            }
+        }
+
+        async function deleteClass(id) {
+            if (!confirm('确定删除这门课程吗？')) return;
+            try {
+                await fetch(`${VIKA_BASE}/${VIKA_COURSES_TABLE}/records?recordIds=${id}`, {
+                    method: "DELETE",
+                    headers: requestHeaders
+                });
+                const res = await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records?filterByFormula={courseId}="${id}"`, {
+                    headers: requestHeaders
+                });
+                const data = await res.json();
+                if (data.data.records.length > 0) {
+                    const recordId = data.data.records[0].recordId;
+                    await fetch(`${VIKA_BASE}/${VIKA_RECORDS_TABLE}/records?recordIds=${recordId}`, {
+                        method: "DELETE",
+                        headers: requestHeaders
+                    });
+                }
+
+                await loadAllData();
+                alert('删除成功');
+            } catch (e) {
+                alert('删除失败');
+            }
+        }
+
+        function renderCourseList() {
+            const list = document.getElementById('course-list');
+            list.innerHTML = '';
+            const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+            courses.forEach(course => {
+                const item = document.createElement('div');
+                item.className = 'course-list-item';
+                item.innerHTML = `
+                    <span>${course.name} · ${dayNames[course.day]} ${course.start}-${course.end}</span>
+                    <button class="btn-danger" onclick="deleteClass('${course.id}')">删除</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function toggleReminder() {
+            if (!reminderEnabled) {
+                if (Notification.permission === 'granted') {
+                    enableReminder();
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(p => {
+                        if (p === 'granted') enableReminder();
+                        else alert('请允许浏览器通知权限，或仅使用微信提醒');
+                    });
+                } else {
+                    enableReminder();
+                }
+            } else {
+                disableReminder();
+            }
+        }
+
+        function enableReminder() {
+            reminderEnabled = true;
+            document.getElementById('reminderToggle').textContent = '关闭提醒';
+            document.getElementById('reminderToggle').classList.remove('off');
+            document.getElementById('reminderStatus').style.display = 'inline';
+            reminderTimer = setInterval(checkReminder, 60000);
+            checkReminder();
+        }
+
+        function disableReminder() {
+            reminderEnabled = false;
+            document.getElementById('reminderToggle').textContent = '开启提醒';
+            document.getElementById('reminderToggle').classList.add('off');
+            document.getElementById('reminderStatus').style.display = 'none';
+            clearInterval(reminderTimer);
+        }
+
+        function sendWechatReminder(title, content) {
+            if (!SERVER_CHAN_KEY) return;
+            const url = `https://sctapi.ftqq.com/${SERVER_CHAN_KEY}.send?title=${encodeURIComponent(title)}&desp=${encodeURIComponent(content)}`;
+            fetch(url, { mode: 'no-cors' });
+        }
+
+        function checkReminder() {
+            const now = new Date();
+            const dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
+            const todayStr = now.toDateString();
+            if (remindedToday.date !== todayStr) remindedToday = { date: todayStr, ids: [] };
+
+            courses.forEach(course => {
+                if (course.day !== dayIndex || remindedToday.ids.includes(course.id)) return;
+
+                const [startH, startM] = course.start.split(':').map(Number);
+                const remindTime = new Date(now);
+                remindTime.setHours(startH, startM - REMIND_BEFORE_MINUTES, 0, 0);
+                const classStart = new Date(now);
+                classStart.setHours(startH, startM, 0, 0);
+
+                if (now >= remindTime && now < classStart) {
+                    if (Notification.permission === 'granted') {
+                        new Notification('上课提醒', {
+                            body: `${course.name} ${REMIND_BEFORE_MINUTES}分钟后开始（${course.start}-${course.end}）`
+                        });
+                    }
+                    sendWechatReminder('上课提醒', `${course.name}\n时间：${course.start}-${course.end}\n还有${REMIND_BEFORE_MINUTES}分钟上课`);
+                    remindedToday.ids.push(course.id);
+                }
+            });
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && reminderEnabled) {
+                checkReminder();
+            }
+        });
+
+        function openSubscribeModal() {
+            document.getElementById('subscribeModal').classList.add('show');
+        }
+
+        function closeSubscribeModal() {
+            document.getElementById('subscribeModal').classList.remove('show');
+        }
+
+        document.getElementById('subscribeModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSubscribeModal();
+        });
+
+        function copyLink(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('链接已复制到剪贴板');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('链接已复制（请手动粘贴）');
+            });
+        }
+
+        updateWeekDates();
+        loadAllData();
+    </script>
+</body>
+</html>
